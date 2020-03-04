@@ -5,8 +5,11 @@ import javax.swing.JFrame;
 public class MiniClient extends JFrame {
     public MiniClient() throws Exception {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        AppletLoader loader = new AppletLoader(216, 765, 503);
-        setResizable(false);
+
+        Settings settings = new Settings();
+        setResizable(settings.resizableFrame());
+
+        AppletLoader loader = new AppletLoader(settings.world(), settings.width(), settings.height());
         add(loader.applet);
         pack();
         setVisible(true);

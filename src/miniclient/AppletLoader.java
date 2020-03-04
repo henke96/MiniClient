@@ -22,13 +22,14 @@ public class AppletLoader extends ClassLoader implements AppletStub {
 
     private HashMap<String, byte[]> classes = new HashMap<>();
     private HashMap<String, String> parameters = new HashMap<>();
-    private File localGamepack = new File(System.getProperty("user.home") + "/MiniClient/gamepack.jar");
+    private static final File localGamepack = new File(System.getProperty("user.home") + "/MiniClient/gamepack.jar");
 
     public AppletLoader(int world, int width, int height) throws Exception {
+        world = world - 300;
         loadGamepack(world);
         String initialClass = parameters.get("initial_class");
         initialClass = initialClass.substring(0, initialClass.indexOf('.'));
-        applet = (Applet)loadClass(initialClass).newInstance();
+        applet = (Applet) loadClass(initialClass).newInstance();
         applet.setStub(this);
         applet.resize(width, height);
         applet.setPreferredSize(new Dimension(width, height));
@@ -57,7 +58,7 @@ public class AppletLoader extends ClassLoader implements AppletStub {
             // Need to download new gamepack.
             ZipOutputStream localGamepackOut = null;
             try {
-                if (localGamepack.getParentFile().exists() || localGamepack.getParentFile().mkdirs()) {
+                if ((localGamepack.getParentFile().exists() || localGamepack.getParentFile().mkdirs()) && localGamepack.getParentFile().isDirectory()) {
                     localGamepackOut = new ZipOutputStream(new FileOutputStream(localGamepack));
                     localGamepackOut.putNextEntry(currentEntry);
                     localGamepackOut.write(manifestBytes, 0, manifestBytes.length);
