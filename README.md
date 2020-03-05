@@ -8,5 +8,5 @@ A minimal runescape client.
 ## Running
 Double click 'MiniClient.jar'.
 ## Settings
-A 'settings.txt' file is placed in a folder called 'MiniClient' in your home directory (Ex. C:\Users\yourname\MiniClient\settings.txt).
+A 'settings.txt' file is placed in a folder called 'MiniClient' in your home directory (C:\Users\yourname\MiniClient\settings.txt).
 In this file, some settings like world and window size etc. can be changed.
