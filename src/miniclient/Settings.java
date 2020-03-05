@@ -32,15 +32,15 @@ public class Settings {
     }
 
     public int width() {
-        return tryParseInt(properties.getProperty("width"));
+        return Integer.parseInt(properties.getProperty("width"));
     }
 
     public int height() {
-        return tryParseInt(properties.getProperty("height"));
+        return Integer.parseInt(properties.getProperty("height"));
     }
 
     public boolean resizableFrame() {
-        return tryParseInt(properties.getProperty("resizableFrame")) != 0;
+        return Integer.parseInt(properties.getProperty("resizableFrame")) != 0;
     }
 
     public int world() {
