@@ -44,7 +44,7 @@ public class Settings {
     }
 
     public int world() {
-        return tryParseInt(properties.getProperty("world"));
+        return Integer.parseInt(properties.getProperty("world"));
     }
 
     private boolean setDefaults() {
