@@ -25,7 +25,7 @@ public class AppletLoader extends ClassLoader implements AppletStub {
     private static final File localGamepack = new File(System.getProperty("user.home") + "/MiniClient/gamepack.jar");
 
     public AppletLoader(int world, int width, int height) throws Exception {
-        world = world - 300;
+        world -= 300; // World 301 is actually world 1, etc.
         loadGamepack(world);
         String initialClass = parameters.get("initial_class");
         initialClass = initialClass.substring(0, initialClass.indexOf('.'));
