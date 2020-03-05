@@ -101,9 +101,8 @@ public class AppletLoader extends ClassLoader implements AppletStub {
         String line;
         while ((line = reader.readLine()) != null) {
             int eqIndex = line.indexOf('=');
-            if (eqIndex == -1) {
-                continue;
-            }
+            if (eqIndex == -1) continue;
+
             String name = line.substring(0, eqIndex);
             if (!name.equals("msg")) {
                 if (name.equals("param")) {
@@ -121,9 +120,7 @@ public class AppletLoader extends ClassLoader implements AppletStub {
         byte[] classData = classes.get(name);
         if (classData != null) {
             Class<?> result = defineClass(name, classData, 0, classData.length);
-            if (result != null) {
-                return result;
-            }
+            if (result != null) return result;
         }
         return super.loadClass(name);
     }
