@@ -45,10 +45,9 @@ public class AppletLoader extends ClassLoader implements AppletStub {
             ZipEntry currentEntry = gamepackIn.getNextEntry();
             byte[] manifestBytes = readZipEntry(gamepackIn);
             if (localGamepack.exists()) {
-                int hashCode = Arrays.hashCode(manifestBytes);
                 try (ZipInputStream localGamepackIn = new ZipInputStream(new FileInputStream(localGamepack))) {
                     localGamepackIn.getNextEntry();
-                    if (hashCode == Arrays.hashCode(readZipEntry(localGamepackIn))) {
+                    if (Arrays.equals(manifestBytes, readZipEntry(localGamepackIn))) {
                         // Local gamepack is up to date.
                         loadGamepackClasses(localGamepackIn, null);
                         return;
