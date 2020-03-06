@@ -17,6 +17,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+import miniclient.jvm.ByteArray;
+import miniclient.jvm.ClassFile;
+
 public class AppletLoader extends ClassLoader implements AppletStub {
     public final Applet applet;
 
@@ -93,6 +96,9 @@ public class AppletLoader extends ClassLoader implements AppletStub {
                 localGamepackOut.putNextEntry(currentEntry);
                 localGamepackOut.write(classBytes, 0, classBytes.length);
             }
+            ByteArray byteArray = new ByteArray(classBytes);
+            System.out.println(name);
+            new ClassFile(byteArray);
         }
     }
 
