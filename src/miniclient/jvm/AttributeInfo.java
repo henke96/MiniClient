@@ -1,9 +1,17 @@
 package miniclient.jvm;
 
 public class AttributeInfo {
-    public AttributeInfo(ByteArray bytes) {
-        bytes.index += 2;
+    public final String name;
+    public final Object attribute;
+    public AttributeInfo(ByteArray bytes, ConstPoolInfo[] constPool) {
+        int nameIndex = bytes.readUShort();
+        name = (String) constPool[nameIndex].info;
         int attributeLength = bytes.readInt();
-        bytes.index += attributeLength;
+        if (name.equals("Code")) {
+            attribute = new CodeAttribute(bytes);
+        } else {
+            attribute = null;
+            bytes.index += attributeLength;
+        }
     }
 }

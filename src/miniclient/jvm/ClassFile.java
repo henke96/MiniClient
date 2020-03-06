@@ -1,10 +1,9 @@
 package miniclient.jvm;
 
 public class ClassFile {
-    private ConstPoolInfo[] constPool;
-    private FieldInfo[] fields;
-    private MethodInfo[] methods;
-    private AttributeInfo[] attributes;
+    public final ConstPoolInfo[] constPool;
+    public final FieldInfo[] fields;
+    public final MethodInfo[] methods;
 
     public ClassFile(ByteArray bytes) {
         bytes.index = 8;
@@ -14,7 +13,7 @@ public class ClassFile {
             constPool[i] = new ConstPoolInfo(bytes);
             if (constPool[i].isPadded()) ++i;
         }
-        
+
         bytes.index += 6;
         int interfaceCount = bytes.readUShort();
         bytes.index += interfaceCount * 2;
@@ -22,19 +21,20 @@ public class ClassFile {
         int fieldCount = bytes.readUShort();
         fields = new FieldInfo[fieldCount];
         for (int i = 0; i < fieldCount; ++i) {
-            fields[i] = new FieldInfo(bytes);
+            fields[i] = new FieldInfo(bytes, constPool);
         }
 
         int methodCount = bytes.readUShort();
         methods = new MethodInfo[methodCount];
         for (int i = 0; i < methodCount; ++i) {
-            methods[i] = new MethodInfo(bytes);
+            methods[i] = new MethodInfo(bytes, constPool);
         }
 
         int attributeCount = bytes.readUShort();
-        attributes = new AttributeInfo[attributeCount];
         for (int i = 0; i < attributeCount; ++i) {
-            attributes[i] = new AttributeInfo(bytes);
+            bytes.index += 2;
+            int length = bytes.readInt();
+            bytes.index += length;
         }
         if (bytes.index != bytes.bytes.length) throw new RuntimeException("rip");
     }

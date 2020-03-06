@@ -30,6 +30,9 @@ public class AppletLoader extends ClassLoader implements AppletStub {
     public AppletLoader(int world, int width, int height) throws Exception {
         world -= 300; // World 301 is actually world 1, etc.
         loadGamepack(world);
+
+        new Test().test("client", classes.get("client"), this);
+
         String initialClass = parameters.get("initial_class");
         initialClass = initialClass.substring(0, initialClass.indexOf('.'));
         applet = (Applet) loadClass(initialClass).newInstance();
@@ -46,13 +49,13 @@ public class AppletLoader extends ClassLoader implements AppletStub {
         URL gamepackUrl = new URL(gameUrl + parameters.get("initial_jar"));
         try (ZipInputStream gamepackIn = new ZipInputStream(gamepackUrl.openStream())) {
             ZipEntry currentEntry = gamepackIn.getNextEntry();
-            byte[] manifestBytes = readZipEntry(gamepackIn); 
+            byte[] manifestBytes = readZipEntry(gamepackIn);
             if (localGamepack.exists()) {
                 int hashCode = Arrays.hashCode(manifestBytes);
                 try (ZipInputStream localGamepackIn = new ZipInputStream(new FileInputStream(localGamepack))) {
                     localGamepackIn.getNextEntry();
                     if (hashCode == Arrays.hashCode(readZipEntry(localGamepackIn))) {
-                        // Local gamepack is up to date.   
+                        // Local gamepack is up to date.
                         loadGamepackClasses(localGamepackIn, null);
                         return;
                     }
@@ -96,9 +99,6 @@ public class AppletLoader extends ClassLoader implements AppletStub {
                 localGamepackOut.putNextEntry(currentEntry);
                 localGamepackOut.write(classBytes, 0, classBytes.length);
             }
-            ByteArray byteArray = new ByteArray(classBytes);
-            System.out.println(name);
-            new ClassFile(byteArray);
         }
     }
 
@@ -123,9 +123,12 @@ public class AppletLoader extends ClassLoader implements AppletStub {
 
     @Override
     public Class<?> loadClass(String name) throws ClassNotFoundException {
+        Class<?> result = findLoadedClass(name);
+        if (result != null) return result;
+
         byte[] classData = classes.get(name);
         if (classData != null) {
-            Class<?> result = defineClass(name, classData, 0, classData.length);
+            result = defineClass(name, classData, 0, classData.length);
             if (result != null) return result;
         }
         return super.loadClass(name);

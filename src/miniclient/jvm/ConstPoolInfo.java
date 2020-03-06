@@ -24,13 +24,13 @@ public class ConstPoolInfo {
         info = null;
         switch (tag) {
             case TAG_CLASS: {
-                bytes.index += 2;
+                info = new ClassInfo(bytes);
                 break;
             }
             case TAG_FIELD_REF:
             case TAG_METHOD_REF:
             case TAG_INTERFACE_METHOD_REF: {
-                bytes.index += 4;
+                info = new RefInfo(bytes);
                 break;
             }
             case TAG_STRING: {
@@ -38,7 +38,7 @@ public class ConstPoolInfo {
                 break;
             }
             case TAG_INTEGER: {
-                bytes.index += 4;
+                info = new IntegerInfo(bytes);
                 break;
             }
             case TAG_FLOAT: {
@@ -54,7 +54,7 @@ public class ConstPoolInfo {
                 break;
             }
             case TAG_NAME_AND_TYPE: {
-                bytes.index += 4;
+                info = new NameAndTypeInfo(bytes);
                 break;
             }
             case TAG_UTF8: {
