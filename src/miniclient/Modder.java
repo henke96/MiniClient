@@ -84,7 +84,6 @@ public class Modder {
                                 }
                             } else if (fieldType.equals("Ljava/lang/String;")) {
                                 if (foundX && pathY != null && baseYOwner != null && baseY != null && baseYMult != 0) {
-                                    System.out.println("Found!");
                                     Class<?> baseXOwnerClass = classLoader.loadClass(baseXOwner);
                                     this.baseXField = baseXOwnerClass.getDeclaredField(baseX);
                                     this.baseXField.setAccessible(true);
