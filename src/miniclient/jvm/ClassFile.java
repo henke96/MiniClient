@@ -1,11 +1,13 @@
 package miniclient.jvm;
 
 public class ClassFile {
+    public final ByteArray bytes;
     public final ConstPoolInfo[] constPool;
     public final FieldInfo[] fields;
     public final MethodInfo[] methods;
 
     public ClassFile(ByteArray bytes) {
+        this.bytes = bytes;
         bytes.index = 8;
         int constPoolCount = bytes.readUShort();
         constPool = new ConstPoolInfo[constPoolCount];

@@ -4,26 +4,29 @@ import java.lang.reflect.Field;
 
 import miniclient.jvm.*;
 
-public class Test {
-    private Field localPlayerField;
-    private Field actor_pathXField;
-    private Field actor_pathYField;
-    private Field baseXField;
-    private int baseXMult;
-    private Field baseYField;
-    private int baseYMult;
+public class Modder {
+    private ClassFile clientClass;
 
-    private static final int[] opcodeLength = new int[]{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 2, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 0, 0, 1, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3, 3, 3, 5, 5, 3, 2, 3, 1, 1, 3, 3, 1, 1, 0, 4, 3, 3, 5, 5};
+    public Field localPlayerField;
+    public Field actorPathXField;
+    public Field actorPathYField;
+    public Field baseXField;
+    public int baseXMult;
+    public Field baseYField;
+    public int baseYMult;
 
-    public void test(String name, byte[] classBytes, ClassLoader classLoader) throws Exception {
-        if (!name.equals("client")) return;
+    public byte[] processClass(String name, byte[] bytes) {
+        if (name.equals("client")) clientClass = new ClassFile(new ByteArray(bytes));
+        return bytes;
+    }
 
-        ByteArray byteArray = new ByteArray(classBytes);
-        ClassFile file = new ClassFile(byteArray);
-        ConstPoolInfo[] constPool = file.constPool;
+    // Big mess :-)
+    public void finalize(ClassLoader classLoader) throws Exception {
+        ByteArray bytes = clientClass.bytes;
+        ConstPoolInfo[] constPool = clientClass.constPool;
 
-        for (int i = 0; i < file.methods.length; ++i) {
-            MethodInfo methodInfo = file.methods[i];
+        for (int i = 0; i < clientClass.methods.length; ++i) {
+            MethodInfo methodInfo = clientClass.methods[i];
             if (methodInfo.accessFlags != MethodInfo.ACC_FINAL) continue;
             String descriptor = (String) constPool[methodInfo.descriptorIndex].info;
             if (!descriptor.matches("\\(L\\w{1,2};.\\)Z")) continue;
@@ -34,19 +37,17 @@ public class Test {
                 if (attributeInfo.name.equals("Code")) codeAttribute = (CodeAttribute) attributeInfo.attribute;
             }
 
-            byteArray.index = codeAttribute.codeStartIndex;
+            bytes.index = codeAttribute.codeStartIndex;
 
             boolean foundX = false;
             outerLoop:
             while (true) {
-                if (byteArray.index >= codeAttribute.codeStartIndex + codeAttribute.codeLength) throw new RuntimeException("asd");
-                int op = byteArray.readUByte();
+                int op = bytes.readUByte();
                 if (op != CodeAttribute.GETSTATIC) {
-                    if (opcodeLength[op] == 0) throw new RuntimeException();
-                    byteArray.index += opcodeLength[op] - 1;
+                    bytes.index += CodeAttribute.OPERAND_SIZES[op];
                     continue;
                 }
-                RefInfo refInfo = (RefInfo) constPool[byteArray.readUShort()].info;
+                RefInfo refInfo = (RefInfo) constPool[bytes.readUShort()].info;
                 NameAndTypeInfo nameAndTypeInfo = (NameAndTypeInfo) constPool[refInfo.nameAndTypeIndex].info;
                 String fieldType = (String) constPool[nameAndTypeInfo.descriptorIndex].info;
                 if (!fieldType.equals("Ljava/lang/String;")) continue;
@@ -63,10 +64,10 @@ public class Test {
                 int baseYMult = 0;
 
                 while (true) {
-                    op = byteArray.readUByte();
+                    op = bytes.readUByte();
                     switch (op) {
                         case CodeAttribute.GETSTATIC: {
-                            refInfo = (RefInfo) constPool[byteArray.readUShort()].info;
+                            refInfo = (RefInfo) constPool[bytes.readUShort()].info;
                             nameAndTypeInfo = (NameAndTypeInfo) constPool[refInfo.nameAndTypeIndex].info;
                             fieldType = (String) constPool[nameAndTypeInfo.descriptorIndex].info;
                             ClassInfo classInfo = (ClassInfo) constPool[refInfo.classIndex].info;
@@ -83,7 +84,7 @@ public class Test {
                                 }
                             } else if (fieldType.equals("Ljava/lang/String;")) {
                                 if (foundX && pathY != null && baseYOwner != null && baseY != null && baseYMult != 0) {
-                                    System.out.println("Find coord fields");
+                                    System.out.println("Found!");
                                     Class<?> baseXOwnerClass = classLoader.loadClass(baseXOwner);
                                     this.baseXField = baseXOwnerClass.getDeclaredField(baseX);
                                     this.baseXField.setAccessible(true);
@@ -96,10 +97,10 @@ public class Test {
                                     this.localPlayerField = localPlayerOwnerClass.getDeclaredField(localPlayer);
                                     this.localPlayerField.setAccessible(true);
                                     Class<?> actorClass = classLoader.loadClass(player).getSuperclass();
-                                    this.actor_pathXField = actorClass.getDeclaredField(pathX);
-                                    this.actor_pathXField.setAccessible(true);
-                                    this.actor_pathYField = actorClass.getDeclaredField(pathY);
-                                    this.actor_pathYField.setAccessible(true);
+                                    this.actorPathXField = actorClass.getDeclaredField(pathX);
+                                    this.actorPathXField.setAccessible(true);
+                                    this.actorPathYField = actorClass.getDeclaredField(pathY);
+                                    this.actorPathYField.setAccessible(true);
                                     return;
                                 } else if (localPlayerOwner != null && localPlayer != null && player != null && pathX != null && baseXOwner != null && baseX != null && baseXMult != 0) {
                                     foundX = true;
@@ -107,11 +108,11 @@ public class Test {
                             } else {
                                 continue outerLoop;
                             }
-                            byteArray.index -= 2;
+                            bytes.index -= 2;
                             break;
                         }
                         case CodeAttribute.LDC_W: {
-                            ConstPoolInfo constPoolInfo = constPool[byteArray.readUShort()];
+                            ConstPoolInfo constPoolInfo = constPool[bytes.readUShort()];
                             if (constPoolInfo.tag != ConstPoolInfo.TAG_INTEGER) {
                                 continue outerLoop;
                             }
@@ -121,11 +122,11 @@ public class Test {
                             } else {
                                 baseXMult = integerInfo.value;
                             }
-                            byteArray.index -= 2;
+                            bytes.index -= 2;
                             break;
                         }
                         case CodeAttribute.GETFIELD: {
-                            refInfo = (RefInfo) constPool[byteArray.readUShort()].info;
+                            refInfo = (RefInfo) constPool[bytes.readUShort()].info;
                             nameAndTypeInfo = (NameAndTypeInfo) constPool[refInfo.nameAndTypeIndex].info;
                             if (foundX) {
                                 pathY = (String) constPool[nameAndTypeInfo.nameIndex].info;
@@ -134,17 +135,17 @@ public class Test {
                                 player = (String) constPool[classInfo.nameIndex].info;
                                 pathX = (String) constPool[nameAndTypeInfo.nameIndex].info;
                             }
-                            byteArray.index -= 2;
+                            bytes.index -= 2;
                             break;
                         }
                         case CodeAttribute.INVOKEVIRTUAL: {
-                            refInfo = (RefInfo) constPool[byteArray.readUShort()].info;
+                            refInfo = (RefInfo) constPool[bytes.readUShort()].info;
                             nameAndTypeInfo = (NameAndTypeInfo) constPool[refInfo.nameAndTypeIndex].info;
                             String methodName = (String) constPool[nameAndTypeInfo.nameIndex].info;
                             if (!methodName.equals("append")) {
                                 continue outerLoop;
                             }
-                            byteArray.index -= 2;
+                            bytes.index -= 2;
                             break;
                         }
                         case CodeAttribute.ICONST_0:
@@ -153,13 +154,13 @@ public class Test {
                         case CodeAttribute.IADD:
                             break;
                         default:
-                            --byteArray.index;
+                            --bytes.index;
                             continue outerLoop;
                     }
-                    if (opcodeLength[op] == 0) throw new RuntimeException();
-                    byteArray.index += opcodeLength[op] - 1;
+                    bytes.index += CodeAttribute.OPERAND_SIZES[op];
                 }
             }
         }
+        throw new RuntimeException();
     }
 }

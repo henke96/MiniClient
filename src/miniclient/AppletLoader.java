@@ -24,11 +24,9 @@ public class AppletLoader extends ClassLoader implements AppletStub {
     private HashMap<String, String> parameters = new HashMap<>();
     private static final File localGamepack = new File(System.getProperty("user.home") + "/MiniClient/gamepack.jar");
 
-    public AppletLoader(int world, int width, int height) throws Exception {
+    public AppletLoader(int world, int width, int height, Modder modder) throws Exception {
         world -= 300; // World 301 is actually world 1, etc.
-        loadGamepack(world);
-
-        new Test().test("client", classes.get("client"), this);
+        loadGamepack(world, modder);
 
         String initialClass = parameters.get("initial_class");
         initialClass = initialClass.substring(0, initialClass.indexOf('.'));
@@ -40,7 +38,7 @@ public class AppletLoader extends ClassLoader implements AppletStub {
         applet.start();
     }
 
-    private void loadGamepack(int world) throws Exception {
+    private void loadGamepack(int world, Modder modder) throws Exception {
         URL gameUrl = new URL("http://oldschool" + world + ".runescape.com/");
         readParameters(new URL(gameUrl + "jav_config.ws"));
         URL gamepackUrl = new URL(gameUrl + parameters.get("initial_jar"));
@@ -52,7 +50,7 @@ public class AppletLoader extends ClassLoader implements AppletStub {
                     localGamepackIn.getNextEntry();
                     if (Arrays.equals(manifestBytes, readZipEntry(localGamepackIn))) {
                         // Local gamepack is up to date.
-                        loadGamepackClasses(localGamepackIn, null);
+                        loadGamepackClasses(localGamepackIn, modder, null);
                         return;
                     }
                 }
@@ -65,7 +63,7 @@ public class AppletLoader extends ClassLoader implements AppletStub {
                     localGamepackOut.putNextEntry(currentEntry);
                     localGamepackOut.write(manifestBytes, 0, manifestBytes.length);
                 }
-                loadGamepackClasses(gamepackIn, localGamepackOut);
+                loadGamepackClasses(gamepackIn, modder, localGamepackOut);
             } finally {
                 if (localGamepackOut != null) localGamepackOut.close();
             }
@@ -82,20 +80,22 @@ public class AppletLoader extends ClassLoader implements AppletStub {
         return classBytesOut.toByteArray();
     }
 
-    private void loadGamepackClasses(ZipInputStream gamepackIn, ZipOutputStream localGamepackOut) throws Exception {
+    private void loadGamepackClasses(ZipInputStream gamepackIn, Modder modder, ZipOutputStream localGamepackOut) throws Exception {
         ZipEntry currentEntry;
         while ((currentEntry = gamepackIn.getNextEntry()) != null) {
             String name = currentEntry.getName();
             int dotClassIndex = name.indexOf(".class");
             if (dotClassIndex == -1) continue;
+            name = name.substring(0, dotClassIndex);
 
-            byte[] classBytes = readZipEntry(gamepackIn);
-            classes.put(name.substring(0, dotClassIndex), classBytes);
+            byte[] originalBytes = readZipEntry(gamepackIn);
+            classes.put(name, modder.processClass(name, originalBytes));
             if (localGamepackOut != null) {
                 localGamepackOut.putNextEntry(currentEntry);
-                localGamepackOut.write(classBytes, 0, classBytes.length);
+                localGamepackOut.write(originalBytes, 0, originalBytes.length);
             }
         }
+        modder.finalize(this);
     }
 
     private void readParameters(URL url) throws Exception {
