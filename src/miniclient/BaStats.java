@@ -1,9 +1,6 @@
 package miniclient;
 
 import java.awt.Rectangle;
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 
