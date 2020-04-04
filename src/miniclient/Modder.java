@@ -15,13 +15,33 @@ public class Modder {
     public Field baseYField;
     public int baseYMult;
 
+    private boolean addedTickEvent;
+
     public byte[] processClass(String name, byte[] bytes) {
-        if (name.equals("client")) clientClass = new ClassFile(new ByteArray(bytes));
+        ClassFile classFile = null;
+        if (name.equals("client")) {
+            clientClass = classFile = new ClassFile(new ByteArray(bytes));
+        } else if (!addedTickEvent) {
+            classFile = new ClassFile(new ByteArray(bytes));
+        }
+
+        if (!addedTickEvent) {
+            ConstPoolInfo[] constPool = classFile.constPool;
+            for (int i = 0; i < classFile.methods.length; ++i) {
+                MethodInfo methodInfo = classFile.methods[i];
+                if (tryAddTickEvent(methodInfo, constPool)) {
+                    addedTickEvent = true;
+                    break;
+                }
+            }
+        }
         return bytes;
     }
 
     // Big mess :-)
     public void finalize(ClassLoader classLoader) throws Exception {
+        if (!addedTickEvent) throw new RuntimeException();
+
         ByteArray bytes = clientClass.bytes;
         ConstPoolInfo[] constPool = clientClass.constPool;
 
@@ -161,5 +181,60 @@ public class Modder {
             }
         }
         throw new RuntimeException();
+    }
+
+    private boolean tryAddTickEvent(MethodInfo methodInfo, ConstPoolInfo[] constPool) {
+        if (methodInfo.accessFlags != (MethodInfo.ACC_STATIC | MethodInfo.ACC_FINAL)) return false;
+
+        String descriptor = (String) constPool[methodInfo.descriptorIndex].info;
+        if (!descriptor.matches("\\(ZL\\w{1,2};.\\)V")) return false;
+
+        CodeAttribute codeAttribute = null;
+        for (int j = 0; j < methodInfo.attributes.length; ++j) {
+            AttributeInfo attributeInfo = methodInfo.attributes[j];
+            if (attributeInfo.name.equals("Code")) codeAttribute = (CodeAttribute) attributeInfo.attribute;
+        }
+
+        ByteArray bytes = codeAttribute.bytes;
+        bytes.index = codeAttribute.codeStartIndex;
+
+        int[] pattern = { CodeAttribute.ICONST_0, CodeAttribute.PUTSTATIC, CodeAttribute.ICONST_0, CodeAttribute.PUTSTATIC };
+        if (checkPattern(bytes, pattern)) {
+            // Replace the first putstatic.
+            int putstaticIndex = codeAttribute.codeStartIndex + 1;
+            bytes.index = putstaticIndex + 1;
+            int putstaticOperand = bytes.readUShort();
+            int gapIndex = codeAttribute.addEndGap(9);
+
+            bytes.index = putstaticIndex;
+            bytes.writeByte(CodeAttribute.GOTO);
+            bytes.writeShort(gapIndex - putstaticIndex);
+
+            bytes.index = gapIndex;
+            bytes.writeByte(CodeAttribute.GETSTATIC);
+            // TODO: very wip.
+
+        }
+        return false;
+    }
+
+    private boolean checkPattern(ByteArray bytes, int[] pattern) {
+        int patternIndex = 0;
+
+        while (patternIndex < pattern.length) {
+            int op = bytes.readUByte();
+            if (op == CodeAttribute.GOTO) {
+                bytes.index = (bytes.index - 1) + bytes.readUShort();
+                continue;
+            }
+            if (pattern[patternIndex] == op) {
+                ++patternIndex;
+                bytes.index += CodeAttribute.OPERAND_SIZES[op];
+                if (CodeAttribute.OPERAND_SIZES[op] < 0) throw new RuntimeException();
+            } else {
+                return false;
+            }
+        }
+        return true;
     }
 }

@@ -3,7 +3,7 @@ package miniclient.jvm;
 public class ByteArray {
     public final byte[] bytes;
     public int index = 0;
-    
+
     public ByteArray(byte[] bytes) {
         this.bytes = bytes;
     }
@@ -56,5 +56,21 @@ public class ByteArray {
             }
         }
         return new String(chars, 0, charCount);
+    }
+
+    public void writeByte(int value) {
+        bytes[index] = (byte) value;
+    }
+
+    public void writeShort(int value) {
+        bytes[index] = (byte) (value >> 8);
+        bytes[index + 1] = (byte) (value & 0xFF);
+    }
+
+    // Add gap before index.
+    public void addGap(int index, int length) {
+        byte[] newBytes = new byte[bytes.length + length];
+        System.arraycopy(bytes, 0, newBytes, 0, index);
+        System.arraycopy(bytes, index, newBytes, index + length, bytes.length - index);
     }
 }
