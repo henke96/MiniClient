@@ -6,7 +6,7 @@ public class MiniClient {
     private static final String baseTitle = "Runescape";
 
     public static final Modder modder = new Modder();
-    private static final BaStats baStats = new BaStats(modder);
+    private static final BaStats baStats = new BaStats();
     private static final JFrame frame = new JFrame(baseTitle);
 
     // Modder injects a call to this into the client.
@@ -22,7 +22,7 @@ public class MiniClient {
                 int worldY = baseY + pathY[0];
                 if (baStats.update(worldX, worldY)) {
                     if (baStats.infoString != null) {
-                    frame.setTitle(baseTitle + " | " + baStats.infoString);
+                        frame.setTitle(baseTitle + " | " + baStats.infoString);
                     } else {
                         frame.setTitle(baseTitle);
                     }
