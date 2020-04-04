@@ -1,7 +1,7 @@
 package miniclient.jvm;
 
 public class ByteArray {
-    public final byte[] bytes;
+    public byte[] bytes;
     public int index = 0;
 
     public ByteArray(byte[] bytes) {
@@ -59,12 +59,63 @@ public class ByteArray {
     }
 
     public void writeByte(int value) {
-        bytes[index] = (byte) value;
+        bytes[index++] = (byte) value;
     }
 
     public void writeShort(int value) {
         bytes[index] = (byte) (value >> 8);
         bytes[index + 1] = (byte) (value & 0xFF);
+        index += 2;
+    }
+
+    public void writeInt(long value) {
+        bytes[index] = (byte) (value >> 24);
+        bytes[index + 1] = (byte) ((value >> 16) & 0xFF);
+        bytes[index + 2] = (byte) ((value >> 8) & 0xFF);
+        bytes[index + 3] = (byte) (value & 0xFF);
+        index += 4;
+    }
+
+    public static int calcUTFLength(String string) {
+        int stringLength = string.length();
+        int utfLength = 0;
+
+        for (int i = 0; i < stringLength; i++) {
+            int c = string.charAt(i);
+            if ((c >= 0x0001) && (c <= 0x007F)) {
+                ++utfLength;
+            } else if (c > 0x07FF) {
+                utfLength += 3;
+            } else {
+                utfLength += 2;
+            }
+        }
+        return utfLength + 2;
+    }
+
+    public void writeUTF(String string) {
+        int stringLength = string.length();
+        int startIndex = index;
+        index += 2;
+
+        for (int i = 0; i < stringLength; ++i) {
+            int c = string.charAt(i);
+            if ((c >= 0x0001) && (c <= 0x007F)) {
+                bytes[index++] = (byte) c;
+            } else if (c > 0x07FF) {
+                bytes[index] = (byte) (0xE0 | ((c >> 12) & 0x0F));
+                bytes[index + 1] = (byte) (0x80 | ((c >> 6) & 0x3F));
+                bytes[index + 2] = (byte) (0x80 | ((c >> 0) & 0x3F));
+                index += 3;
+            } else {
+                bytes[index] = (byte) (0xC0 | ((c >> 6) & 0x1F));
+                bytes[index + 1] = (byte) (0x80 | ((c >> 0) & 0x3F));
+                index += 2;
+            }
+        }
+        int length = index - (startIndex + 2);
+        bytes[startIndex] = (byte) (length >>> 8);
+        bytes[startIndex + 1] = (byte) (length & 0xFF);
     }
 
     // Add gap before index.
@@ -72,5 +123,6 @@ public class ByteArray {
         byte[] newBytes = new byte[bytes.length + length];
         System.arraycopy(bytes, 0, newBytes, 0, index);
         System.arraycopy(bytes, index, newBytes, index + length, bytes.length - index);
+        bytes = newBytes;
     }
 }

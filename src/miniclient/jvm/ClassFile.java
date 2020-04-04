@@ -2,19 +2,14 @@ package miniclient.jvm;
 
 public class ClassFile {
     public final ByteArray bytes;
-    public final ConstPoolInfo[] constPool;
+    public final ConstPool constPool;
     public final FieldInfo[] fields;
     public final MethodInfo[] methods;
 
     public ClassFile(ByteArray bytes) {
         this.bytes = bytes;
         bytes.index = 8;
-        int constPoolCount = bytes.readUShort();
-        constPool = new ConstPoolInfo[constPoolCount];
-        for (int i = 1; i < constPoolCount; ++i) {
-            constPool[i] = new ConstPoolInfo(bytes);
-            if (constPool[i].isPadded()) ++i;
-        }
+        constPool = new ConstPool(this);
 
         bytes.index += 6;
         int interfaceCount = bytes.readUShort();
@@ -23,13 +18,13 @@ public class ClassFile {
         int fieldCount = bytes.readUShort();
         fields = new FieldInfo[fieldCount];
         for (int i = 0; i < fieldCount; ++i) {
-            fields[i] = new FieldInfo(bytes, constPool);
+            fields[i] = new FieldInfo(bytes);
         }
 
         int methodCount = bytes.readUShort();
         methods = new MethodInfo[methodCount];
         for (int i = 0; i < methodCount; ++i) {
-            methods[i] = new MethodInfo(bytes, constPool);
+            methods[i] = new MethodInfo(this);
         }
 
         int attributeCount = bytes.readUShort();
@@ -38,6 +33,20 @@ public class ClassFile {
             int length = bytes.readInt();
             bytes.index += length;
         }
-        if (bytes.index != bytes.bytes.length) throw new RuntimeException("rip");
+        if (bytes.index != bytes.bytes.length) throw new RuntimeException();
+    }
+
+    // Add gap before index.
+    public void addGap(int index, int length) {
+        bytes.addGap(index, length);
+        if (constPool.poolEndIndex >= index) {
+            constPool.poolEndIndex += length;
+        }
+        for (int i = 0; i < methods.length; ++i) {
+            CodeAttribute codeAttribute = methods[i].codeAttribute;
+            if (codeAttribute.codeStartIndex >= index) {
+                codeAttribute.codeStartIndex += length;
+            }
+        }
     }
 }

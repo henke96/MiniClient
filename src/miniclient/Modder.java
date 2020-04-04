@@ -23,10 +23,12 @@ public class Modder {
             clientClass = classFile = new ClassFile(new ByteArray(bytes));
         } else if (!addedTickEvent) {
             classFile = new ClassFile(new ByteArray(bytes));
+        } else {
+            return bytes;
         }
 
         if (!addedTickEvent) {
-            ConstPoolInfo[] constPool = classFile.constPool;
+            ConstPool constPool = classFile.constPool;
             for (int i = 0; i < classFile.methods.length; ++i) {
                 MethodInfo methodInfo = classFile.methods[i];
                 if (tryAddTickEvent(methodInfo, constPool)) {
@@ -35,7 +37,7 @@ public class Modder {
                 }
             }
         }
-        return bytes;
+        return classFile.bytes.bytes;
     }
 
     // Big mess :-)
@@ -43,20 +45,15 @@ public class Modder {
         if (!addedTickEvent) throw new RuntimeException();
 
         ByteArray bytes = clientClass.bytes;
-        ConstPoolInfo[] constPool = clientClass.constPool;
+        ConstPool constPool = clientClass.constPool;
 
         for (int i = 0; i < clientClass.methods.length; ++i) {
             MethodInfo methodInfo = clientClass.methods[i];
             if (methodInfo.accessFlags != MethodInfo.ACC_FINAL) continue;
-            String descriptor = (String) constPool[methodInfo.descriptorIndex].info;
+            String descriptor = constPool.getUtf8Info(methodInfo.descriptorIndex);
             if (!descriptor.matches("\\(L\\w{1,2};.\\)Z")) continue;
 
-            CodeAttribute codeAttribute = null;
-            for (int j = 0; j < methodInfo.attributes.length; ++j) {
-                AttributeInfo attributeInfo = methodInfo.attributes[j];
-                if (attributeInfo.name.equals("Code")) codeAttribute = (CodeAttribute) attributeInfo.attribute;
-            }
-
+            CodeAttribute codeAttribute = methodInfo.codeAttribute;
             bytes.index = codeAttribute.codeStartIndex;
 
             boolean foundX = false;
@@ -67,10 +64,8 @@ public class Modder {
                     bytes.index += CodeAttribute.OPERAND_SIZES[op];
                     continue;
                 }
-                RefInfo refInfo = (RefInfo) constPool[bytes.readUShort()].info;
-                NameAndTypeInfo nameAndTypeInfo = (NameAndTypeInfo) constPool[refInfo.nameAndTypeIndex].info;
-                String fieldType = (String) constPool[nameAndTypeInfo.descriptorIndex].info;
-                if (!fieldType.equals("Ljava/lang/String;")) continue;
+                String fieldDescriptor = constPool.getRefDescriptor(bytes.readUShort());
+                if (!fieldDescriptor.equals("Ljava/lang/String;")) continue;
                 String localPlayerOwner = null;
                 String localPlayer = null;
                 String player = null;
@@ -87,22 +82,20 @@ public class Modder {
                     op = bytes.readUByte();
                     switch (op) {
                         case CodeAttribute.GETSTATIC: {
-                            refInfo = (RefInfo) constPool[bytes.readUShort()].info;
-                            nameAndTypeInfo = (NameAndTypeInfo) constPool[refInfo.nameAndTypeIndex].info;
-                            fieldType = (String) constPool[nameAndTypeInfo.descriptorIndex].info;
-                            ClassInfo classInfo = (ClassInfo) constPool[refInfo.classIndex].info;
-                            if (fieldType.matches("L\\w{1,2};")) {
-                                localPlayerOwner = (String) constPool[classInfo.nameIndex].info;
-                                localPlayer = (String) constPool[nameAndTypeInfo.nameIndex].info;
-                            } else if (fieldType.equals("I")) {
+                            int refInfoIndex = bytes.readUShort();
+                            fieldDescriptor = constPool.getRefDescriptor(refInfoIndex);
+                            if (fieldDescriptor.matches("L\\w{1,2};")) {
+                                localPlayerOwner = constPool.getRefClassName(refInfoIndex);
+                                localPlayer = constPool.getRefName(refInfoIndex);
+                            } else if (fieldDescriptor.equals("I")) {
                                 if (foundX) {
-                                    baseYOwner = (String) constPool[classInfo.nameIndex].info;
-                                    baseY = (String) constPool[nameAndTypeInfo.nameIndex].info;
+                                    baseYOwner = constPool.getRefClassName(refInfoIndex);
+                                    baseY = constPool.getRefName(refInfoIndex);
                                 } else {
-                                    baseXOwner = (String) constPool[classInfo.nameIndex].info;
-                                    baseX = (String) constPool[nameAndTypeInfo.nameIndex].info;
+                                    baseXOwner = constPool.getRefClassName(refInfoIndex);
+                                    baseX = constPool.getRefName(refInfoIndex);
                                 }
-                            } else if (fieldType.equals("Ljava/lang/String;")) {
+                            } else if (fieldDescriptor.equals("Ljava/lang/String;")) {
                                 if (foundX && pathY != null && baseYOwner != null && baseY != null && baseYMult != 0) {
                                     Class<?> baseXOwnerClass = classLoader.loadClass(baseXOwner);
                                     this.baseXField = baseXOwnerClass.getDeclaredField(baseX);
@@ -131,7 +124,7 @@ public class Modder {
                             break;
                         }
                         case CodeAttribute.LDC_W: {
-                            ConstPoolInfo constPoolInfo = constPool[bytes.readUShort()];
+                            ConstPoolInfo constPoolInfo = constPool.constPoolInfos[bytes.readUShort()];
                             if (constPoolInfo.tag != ConstPoolInfo.TAG_INTEGER) {
                                 continue outerLoop;
                             }
@@ -145,22 +138,18 @@ public class Modder {
                             break;
                         }
                         case CodeAttribute.GETFIELD: {
-                            refInfo = (RefInfo) constPool[bytes.readUShort()].info;
-                            nameAndTypeInfo = (NameAndTypeInfo) constPool[refInfo.nameAndTypeIndex].info;
+                            int refInfoIndex = bytes.readUShort();
                             if (foundX) {
-                                pathY = (String) constPool[nameAndTypeInfo.nameIndex].info;
+                                pathY = constPool.getRefName(refInfoIndex);
                             } else {
-                                ClassInfo classInfo = (ClassInfo) constPool[refInfo.classIndex].info;
-                                player = (String) constPool[classInfo.nameIndex].info;
-                                pathX = (String) constPool[nameAndTypeInfo.nameIndex].info;
+                                player = constPool.getRefClassName(refInfoIndex);
+                                pathX = constPool.getRefName(refInfoIndex);
                             }
                             bytes.index -= 2;
                             break;
                         }
                         case CodeAttribute.INVOKEVIRTUAL: {
-                            refInfo = (RefInfo) constPool[bytes.readUShort()].info;
-                            nameAndTypeInfo = (NameAndTypeInfo) constPool[refInfo.nameAndTypeIndex].info;
-                            String methodName = (String) constPool[nameAndTypeInfo.nameIndex].info;
+                            String methodName = constPool.getRefName(bytes.readUShort());
                             if (!methodName.equals("append")) {
                                 continue outerLoop;
                             }
@@ -183,23 +172,20 @@ public class Modder {
         throw new RuntimeException();
     }
 
-    private boolean tryAddTickEvent(MethodInfo methodInfo, ConstPoolInfo[] constPool) {
+    private boolean tryAddTickEvent(MethodInfo methodInfo, ConstPool constPool) {
         if (methodInfo.accessFlags != (MethodInfo.ACC_STATIC | MethodInfo.ACC_FINAL)) return false;
 
-        String descriptor = (String) constPool[methodInfo.descriptorIndex].info;
+        String descriptor = constPool.getUtf8Info(methodInfo.descriptorIndex);
         if (!descriptor.matches("\\(ZL\\w{1,2};.\\)V")) return false;
 
-        CodeAttribute codeAttribute = null;
-        for (int j = 0; j < methodInfo.attributes.length; ++j) {
-            AttributeInfo attributeInfo = methodInfo.attributes[j];
-            if (attributeInfo.name.equals("Code")) codeAttribute = (CodeAttribute) attributeInfo.attribute;
-        }
+        CodeAttribute codeAttribute = methodInfo.codeAttribute;
 
-        ByteArray bytes = codeAttribute.bytes;
+        ByteArray bytes = codeAttribute.classFile.bytes;
         bytes.index = codeAttribute.codeStartIndex;
 
         int[] pattern = { CodeAttribute.ICONST_0, CodeAttribute.PUTSTATIC, CodeAttribute.ICONST_0, CodeAttribute.PUTSTATIC };
         if (checkPattern(bytes, pattern)) {
+            int methodRefIndex = constPool.addRefInfo("miniclient/Modder", "tick", "()V", ConstPoolInfo.TAG_METHOD_REF);
             // Replace the first putstatic.
             int putstaticIndex = codeAttribute.codeStartIndex + 1;
             bytes.index = putstaticIndex + 1;
@@ -209,13 +195,21 @@ public class Modder {
             bytes.index = putstaticIndex;
             bytes.writeByte(CodeAttribute.GOTO);
             bytes.writeShort(gapIndex - putstaticIndex);
-
             bytes.index = gapIndex;
-            bytes.writeByte(CodeAttribute.GETSTATIC);
-            // TODO: very wip.
+            bytes.writeByte(CodeAttribute.INVOKESTATIC);
+            bytes.writeShort(methodRefIndex);
+            bytes.writeByte(CodeAttribute.PUTSTATIC);
+            bytes.writeShort(putstaticOperand);
+            bytes.writeByte(CodeAttribute.GOTO);
+            bytes.writeShort((putstaticIndex + 3) - (bytes.index - 1));
 
+            return true;
         }
         return false;
+    }
+
+    public static void tick() {
+        System.out.println("tick!");
     }
 
     private boolean checkPattern(ByteArray bytes, int[] pattern) {

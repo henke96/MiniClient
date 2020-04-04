@@ -1,5 +1,6 @@
 package miniclient.jvm;
 
+// Fieldref, Methodref, InterfaceMethodref.
 public class RefInfo {
     public final int classIndex;
     public final int nameAndTypeIndex;

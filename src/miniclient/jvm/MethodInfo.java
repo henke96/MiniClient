@@ -17,17 +17,22 @@ public class MethodInfo {
     public final int accessFlags;
     public final int nameIndex;
     public final int descriptorIndex;
-    public final AttributeInfo[] attributes;
+    public CodeAttribute codeAttribute;
 
-    public MethodInfo(ByteArray bytes, ConstPoolInfo[] constPool) {
-        accessFlags = bytes.readUShort();
-        nameIndex = bytes.readUShort();
-        descriptorIndex = bytes.readUShort();
+    public MethodInfo(ClassFile classFile) {
+        accessFlags = classFile.bytes.readUShort();
+        nameIndex = classFile.bytes.readUShort();
+        descriptorIndex = classFile.bytes.readUShort();
 
-        int attributeCount = bytes.readUShort();
-        attributes = new AttributeInfo[attributeCount];
+        int attributeCount = classFile.bytes.readUShort();
         for (int i = 0; i < attributeCount; ++i) {
-            attributes[i] = new AttributeInfo(bytes, constPool);
+            String name = classFile.constPool.getUtf8Info(classFile.bytes.readUShort());
+            if (name.equals("Code")) {
+                codeAttribute = new CodeAttribute(classFile);
+            } else {
+                int attributeLength = classFile.bytes.readInt();
+                classFile.bytes.index += attributeLength;
+            }
         }
     }
 }
