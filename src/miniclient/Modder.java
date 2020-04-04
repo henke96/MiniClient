@@ -185,7 +185,7 @@ public class Modder {
 
         int[] pattern = { CodeAttribute.ICONST_0, CodeAttribute.PUTSTATIC, CodeAttribute.ICONST_0, CodeAttribute.PUTSTATIC };
         if (checkPattern(bytes, pattern)) {
-            int methodRefIndex = constPool.addRefInfo("miniclient/Modder", "tick", "()V", ConstPoolInfo.TAG_METHOD_REF);
+            int methodRefIndex = constPool.addRefInfo("miniclient/MiniClient", "onTick", "()V", ConstPoolInfo.TAG_METHOD_REF);
             // Replace the first putstatic.
             int putstaticIndex = codeAttribute.codeStartIndex + 1;
             bytes.index = putstaticIndex + 1;
@@ -202,7 +202,6 @@ public class Modder {
             bytes.writeShort(putstaticOperand);
             bytes.writeByte(CodeAttribute.GOTO);
             bytes.writeShort((putstaticIndex + 3) - (bytes.index - 1));
-
             return true;
         }
         return false;
