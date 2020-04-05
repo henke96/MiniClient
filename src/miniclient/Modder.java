@@ -37,16 +37,16 @@ public class Modder {
                 }
             }
         }
-        return classFile.bytes.bytes;
+        return classFile.bytes.array;
     }
 
-    // Big mess :-)
     public void finalize(ClassLoader classLoader) throws Exception {
         if (!addedTickEvent) throw new RuntimeException();
 
         ByteArray bytes = clientClass.bytes;
         ConstPool constPool = clientClass.constPool;
 
+        // Find local player and coordinate fields. Big mess :-)
         for (int i = 0; i < clientClass.methods.length; ++i) {
             MethodInfo methodInfo = clientClass.methods[i];
             if (methodInfo.accessFlags != MethodInfo.ACC_FINAL) continue;
@@ -56,8 +56,6 @@ public class Modder {
             CodeAttribute codeAttribute = methodInfo.codeAttribute;
             bytes.index = codeAttribute.codeStartIndex;
 
-            boolean foundX = false;
-            outerLoop:
             while (true) {
                 int op = bytes.readUByte();
                 if (op != CodeAttribute.GETSTATIC) {
@@ -66,6 +64,7 @@ public class Modder {
                 }
                 String fieldDescriptor = constPool.getRefDescriptor(bytes.readUShort());
                 if (!fieldDescriptor.equals("Ljava/lang/String;")) continue;
+
                 String localPlayerOwner = null;
                 String localPlayer = null;
                 String player = null;
@@ -78,11 +77,14 @@ public class Modder {
                 String baseY = null;
                 int baseYMult = 0;
 
-                while (true) {
+                boolean foundX = false;
+
+                boolean stillPotential = true;
+                while (stillPotential) {
                     op = bytes.readUByte();
                     switch (op) {
                         case CodeAttribute.GETSTATIC: {
-                            int refInfoIndex = bytes.readUShort();
+                            int refInfoIndex = bytes.peekUShort();
                             fieldDescriptor = constPool.getRefDescriptor(refInfoIndex);
                             if (fieldDescriptor.matches("L\\w{1,2};")) {
                                 localPlayerOwner = constPool.getRefClassName(refInfoIndex);
@@ -118,42 +120,38 @@ public class Modder {
                                     foundX = true;
                                 }
                             } else {
-                                continue outerLoop;
+                                stillPotential = false;
                             }
-                            bytes.index -= 2;
                             break;
                         }
                         case CodeAttribute.LDC_W: {
-                            ConstPoolInfo constPoolInfo = constPool.constPoolInfos[bytes.readUShort()];
+                            ConstPoolInfo constPoolInfo = constPool.constPoolInfos[bytes.peekUShort()];
                             if (constPoolInfo.tag != ConstPoolInfo.TAG_INTEGER) {
-                                continue outerLoop;
+                                stillPotential = false;
                             }
-                            IntegerInfo integerInfo = (IntegerInfo) constPoolInfo.info;
+                            int value = (int) constPoolInfo.info;
                             if (foundX) {
-                                baseYMult = integerInfo.value;
+                                baseYMult = value;
                             } else {
-                                baseXMult = integerInfo.value;
+                                baseXMult = value;
                             }
-                            bytes.index -= 2;
                             break;
                         }
                         case CodeAttribute.GETFIELD: {
-                            int refInfoIndex = bytes.readUShort();
+                            int refInfoIndex = bytes.peekUShort();
                             if (foundX) {
                                 pathY = constPool.getRefName(refInfoIndex);
                             } else {
                                 player = constPool.getRefClassName(refInfoIndex);
                                 pathX = constPool.getRefName(refInfoIndex);
                             }
-                            bytes.index -= 2;
                             break;
                         }
                         case CodeAttribute.INVOKEVIRTUAL: {
-                            String methodName = constPool.getRefName(bytes.readUShort());
+                            String methodName = constPool.getRefName(bytes.peekUShort());
                             if (!methodName.equals("append")) {
-                                continue outerLoop;
+                                stillPotential = false;
                             }
-                            bytes.index -= 2;
                             break;
                         }
                         case CodeAttribute.ICONST_0:
@@ -162,14 +160,12 @@ public class Modder {
                         case CodeAttribute.IADD:
                             break;
                         default:
-                            --bytes.index;
-                            continue outerLoop;
+                            stillPotential = false;
                     }
                     bytes.index += CodeAttribute.OPERAND_SIZES[op];
                 }
             }
         }
-        throw new RuntimeException();
     }
 
     private boolean tryAddTickEvent(MethodInfo methodInfo, ConstPool constPool) {
@@ -184,50 +180,38 @@ public class Modder {
         bytes.index = codeAttribute.codeStartIndex;
 
         int[] pattern = { CodeAttribute.ICONST_0, CodeAttribute.PUTSTATIC, CodeAttribute.ICONST_0, CodeAttribute.PUTSTATIC };
-        if (checkPattern(bytes, pattern)) {
+        int putstaticIndex = checkPattern(bytes, pattern, 1);
+        if (putstaticIndex >= 0) {
+            int caveOffset = codeAttribute.addCodeCave(putstaticIndex, 3);
             int methodRefIndex = constPool.addRefInfo("miniclient/MiniClient", "onTick", "()V", ConstPoolInfo.TAG_METHOD_REF);
-            // Replace the first putstatic.
-            int putstaticIndex = codeAttribute.codeStartIndex + 1;
-            bytes.index = putstaticIndex + 1;
-            int putstaticOperand = bytes.readUShort();
-            int gapIndex = codeAttribute.addEndGap(9);
 
-            bytes.index = putstaticIndex;
-            bytes.writeByte(CodeAttribute.GOTO);
-            bytes.writeShort(gapIndex - putstaticIndex);
-            bytes.index = gapIndex;
+            bytes.index = codeAttribute.codeStartIndex + caveOffset;
             bytes.writeByte(CodeAttribute.INVOKESTATIC);
             bytes.writeShort(methodRefIndex);
-            bytes.writeByte(CodeAttribute.PUTSTATIC);
-            bytes.writeShort(putstaticOperand);
-            bytes.writeByte(CodeAttribute.GOTO);
-            bytes.writeShort((putstaticIndex + 3) - (bytes.index - 1));
             return true;
         }
         return false;
     }
 
-    public static void tick() {
-        System.out.println("tick!");
-    }
-
-    private boolean checkPattern(ByteArray bytes, int[] pattern) {
+    private int checkPattern(ByteArray bytes, int[] pattern, int returnIndexOf) {
+        int returnIndex = -1;
         int patternIndex = 0;
-
         while (patternIndex < pattern.length) {
             int op = bytes.readUByte();
             if (op == CodeAttribute.GOTO) {
                 bytes.index = (bytes.index - 1) + bytes.readUShort();
                 continue;
-            }
-            if (pattern[patternIndex] == op) {
+            } else if (pattern[patternIndex] == op) {
+                if (patternIndex == returnIndexOf) {
+                    returnIndex = bytes.index - 1;
+                }
                 ++patternIndex;
                 bytes.index += CodeAttribute.OPERAND_SIZES[op];
-                if (CodeAttribute.OPERAND_SIZES[op] < 0) throw new RuntimeException();
             } else {
-                return false;
+                --bytes.index;
+                return -1;
             }
         }
-        return true;
+        return returnIndex;
     }
 }

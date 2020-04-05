@@ -33,7 +33,7 @@ public class ClassFile {
             int length = bytes.readInt();
             bytes.index += length;
         }
-        if (bytes.index != bytes.bytes.length) throw new RuntimeException();
+        if (bytes.index != bytes.array.length) throw new RuntimeException();
     }
 
     // Add gap before index.

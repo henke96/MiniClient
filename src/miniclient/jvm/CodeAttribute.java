@@ -40,16 +40,37 @@ public class CodeAttribute {
         }
     }
 
-    // Returns index to gap.
-    public int addEndGap(int length) {
-        int gapStart = codeStartIndex + codeLength;
-        classFile.addGap(gapStart, length);
-        codeLength += length;
-        attributeLength += length;
+    // Returns offset to cave.
+    public int addCodeCave(int index, int length) {
+        ByteArray bytes = classFile.bytes;
+        int caveStart = codeStartIndex + codeLength;
+
+        // Create the cave.
+        bytes.index = index;
+        int replacedSize = 1 + OPERAND_SIZES[bytes.peekUByte()];
+        if (replacedSize < 3) throw new RuntimeException();
+        int caveLength = length + replacedSize + 3;
+        classFile.addGap(caveStart, caveLength);
+
+        // Copy replaced instruction into cave.
+        System.arraycopy(bytes.array, index, bytes.array, caveStart + length, replacedSize);
+
+        // Write jump to the cave.
+        bytes.writeByte(CodeAttribute.GOTO);
+        bytes.writeShort(caveStart - index);
+
+        // Write jump back.
+        bytes.index = caveStart + length + replacedSize;
+        bytes.writeByte(CodeAttribute.GOTO);
+        bytes.writeShort((index + replacedSize) - (bytes.index - 1));
+
+        // Update lengths.
+        codeLength += caveLength;
+        attributeLength += caveLength;
         classFile.bytes.index = codeStartIndex - 4;
         classFile.bytes.writeInt(codeLength);
         classFile.bytes.index = codeStartIndex - 12;
         classFile.bytes.writeInt(attributeLength);
-        return gapStart;
+        return caveStart - codeStartIndex;
     }
 }

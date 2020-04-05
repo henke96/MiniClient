@@ -38,7 +38,7 @@ public class ConstPoolInfo {
                 break;
             }
             case TAG_INTEGER: {
-                info = new IntegerInfo(bytes);
+                info = bytes.readInt();
                 break;
             }
             case TAG_FLOAT: {
