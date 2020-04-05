@@ -43,10 +43,11 @@ public class ConstPool {
     public int addRefInfo(String className, String refName, String refDescriptor, int refTag) {
         ByteArray bytes = classFile.bytes;
         int newInfosIndex = constPoolInfos.length;
+        int newInfosByteIndex = poolEndIndex;
         int utfLengths = ByteArray.calcUTFLength(className) + ByteArray.calcUTFLength(refName) + ByteArray.calcUTFLength(refDescriptor);
 
-        bytes.index = poolEndIndex;
-        classFile.addGap(poolEndIndex, 16 + utfLengths);
+        classFile.addGap(newInfosByteIndex, 16 + utfLengths);
+        bytes.index = newInfosByteIndex;
         bytes.writeByte(ConstPoolInfo.TAG_UTF8);
         bytes.writeUTF(className);
         bytes.writeByte(ConstPoolInfo.TAG_UTF8);
@@ -62,7 +63,11 @@ public class ConstPool {
         bytes.writeShort(newInfosIndex + 3);
         bytes.writeShort(newInfosIndex + 4);
 
-        constPoolInfos = Arrays.copyOf(constPoolInfos, constPoolInfos.length + 6);
+        constPoolInfos = Arrays.copyOf(constPoolInfos, newInfosIndex + 6);
+        bytes.index = newInfosByteIndex;
+        for (int i = newInfosIndex; i < constPoolInfos.length; ++i) {
+            constPoolInfos[i] = new ConstPoolInfo(bytes);
+        }
         bytes.index = 8;
         bytes.writeShort(constPoolInfos.length);
         return newInfosIndex + 5;
