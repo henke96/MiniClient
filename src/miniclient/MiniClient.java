@@ -4,6 +4,7 @@ import javax.swing.JFrame;
 
 public class MiniClient extends JFrame {
     public MiniClient() throws Exception {
+        super("Runescape");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         Settings settings = new Settings();
