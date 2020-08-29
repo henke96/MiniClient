@@ -34,12 +34,13 @@ public class MiniClient {
     }
 
     public static void main(String[] args) throws Exception {
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
         Settings settings = new Settings();
-        frame.setResizable(settings.resizableFrame());
+        if (settings.opengl()) System.setProperty("sun.java2d.opengl", "true");
 
-        AppletLoader loader = new AppletLoader(settings.world(), settings.width(), settings.height(), modder);
+        JFrame frame = new JFrame("Runescape");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setResizable(settings.resizableFrame());
+        AppletLoader loader = new AppletLoader(settings.world(), settings.width(), settings.height(), settings.connectTimout(), modder);
         frame.add(loader.applet);
         frame.pack();
         frame.setVisible(true);
