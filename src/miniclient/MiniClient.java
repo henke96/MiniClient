@@ -2,20 +2,17 @@ package miniclient;
 
 import javax.swing.JFrame;
 
-public class MiniClient extends JFrame {
-    public MiniClient() throws Exception {
-        super("Runescape");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
-        Settings settings = new Settings();
-        setResizable(settings.resizableFrame());
-
-        AppletLoader loader = new AppletLoader(settings.world(), settings.width(), settings.height());
-        add(loader.applet);
-        pack();
-        setVisible(true);
-    }
+public class MiniClient {
     public static void main(String[] args) throws Exception {
-        new MiniClient();
+        Settings settings = new Settings();
+        if (settings.opengl()) System.setProperty("sun.java2d.opengl", "true");
+
+        JFrame frame = new JFrame("Runescape");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setResizable(settings.resizableFrame());
+        AppletLoader loader = new AppletLoader(settings.world(), settings.width(), settings.height(), settings.connectTimout());
+        frame.add(loader.applet);
+        frame.pack();
+        frame.setVisible(true);
     }
 }

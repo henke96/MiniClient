@@ -10,7 +10,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
+import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.zip.ZipEntry;
@@ -24,9 +26,9 @@ public class AppletLoader extends ClassLoader implements AppletStub {
     private HashMap<String, String> parameters = new HashMap<>();
     private static final File localGamepack = new File(System.getProperty("user.home") + "/MiniClient/gamepack.jar");
 
-    public AppletLoader(int world, int width, int height) throws Exception {
+    public AppletLoader(int world, int width, int height, int connectTimeout) throws Exception {
         world -= 300; // World 301 is actually world 1, etc.
-        loadGamepack(world);
+        loadGamepack(world, connectTimeout);
         String initialClass = parameters.get("initial_class");
         initialClass = initialClass.substring(0, initialClass.indexOf('.'));
         applet = (Applet) loadClass(initialClass).newInstance();
@@ -37,34 +39,43 @@ public class AppletLoader extends ClassLoader implements AppletStub {
         applet.start();
     }
 
-    private void loadGamepack(int world) throws Exception {
+    private void loadGamepack(int world, int connectTimeout) throws Exception {
         URL gameUrl = new URL("http://oldschool" + world + ".runescape.com/");
-        readParameters(new URL(gameUrl + "jav_config.ws"));
-        URL gamepackUrl = new URL(gameUrl + parameters.get("initial_jar"));
-        try (ZipInputStream gamepackIn = new ZipInputStream(gamepackUrl.openStream())) {
-            ZipEntry currentEntry = gamepackIn.getNextEntry();
-            byte[] manifestBytes = readZipEntry(gamepackIn);
-            if (localGamepack.exists()) {
-                try (ZipInputStream localGamepackIn = new ZipInputStream(new FileInputStream(localGamepack))) {
-                    localGamepackIn.getNextEntry();
-                    if (Arrays.equals(manifestBytes, readZipEntry(localGamepackIn))) {
-                        // Local gamepack is up to date.
-                        loadGamepackClasses(localGamepackIn, null);
-                        return;
+        URLConnection configConnection = new URL(gameUrl + "jav_config.ws").openConnection();
+        configConnection.setConnectTimeout(connectTimeout);
+        readParameters(new URL(gameUrl + "jav_config.ws"), connectTimeout);
+
+        while (true) {
+            URLConnection connection = new URL(gameUrl + parameters.get("initial_jar")).openConnection();
+            connection.setConnectTimeout(connectTimeout);
+            try (ZipInputStream gamepackIn = new ZipInputStream(connection.getInputStream())) {
+                ZipEntry currentEntry = gamepackIn.getNextEntry();
+                byte[] manifestBytes = readZipEntry(gamepackIn);
+                if (localGamepack.exists()) {
+                    try (ZipInputStream localGamepackIn = new ZipInputStream(new FileInputStream(localGamepack))) {
+                        localGamepackIn.getNextEntry();
+                        if (Arrays.equals(manifestBytes, readZipEntry(localGamepackIn))) {
+                            // Local gamepack is up to date.
+                            loadGamepackClasses(localGamepackIn, null);
+                            return;
+                        }
                     }
                 }
-            }
-            // Need to download new gamepack.
-            ZipOutputStream localGamepackOut = null;
-            try {
-                if ((localGamepack.getParentFile().exists() || localGamepack.getParentFile().mkdirs()) && localGamepack.getParentFile().isDirectory()) {
-                    localGamepackOut = new ZipOutputStream(new FileOutputStream(localGamepack));
-                    localGamepackOut.putNextEntry(currentEntry);
-                    localGamepackOut.write(manifestBytes, 0, manifestBytes.length);
+                // Need to download new gamepack.
+                ZipOutputStream localGamepackOut = null;
+                try {
+                    if ((localGamepack.getParentFile().exists() || localGamepack.getParentFile().mkdirs()) && localGamepack.getParentFile().isDirectory()) {
+                        localGamepackOut = new ZipOutputStream(new FileOutputStream(localGamepack));
+                        localGamepackOut.putNextEntry(currentEntry);
+                        localGamepackOut.write(manifestBytes, 0, manifestBytes.length);
+                    }
+                    loadGamepackClasses(gamepackIn, localGamepackOut);
+                } finally {
+                    if (localGamepackOut != null) localGamepackOut.close();
                 }
-                loadGamepackClasses(gamepackIn, localGamepackOut);
-            } finally {
-                if (localGamepackOut != null) localGamepackOut.close();
+                break;
+            } catch (SocketTimeoutException e) {
+                System.err.println("Timed out connecting, retrying...");
             }
         }
     }
@@ -95,21 +106,29 @@ public class AppletLoader extends ClassLoader implements AppletStub {
         }
     }
 
-    private void readParameters(URL url) throws Exception {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
-        String line;
-        while ((line = reader.readLine()) != null) {
-            int eqIndex = line.indexOf('=');
-            if (eqIndex == -1) continue;
+    private void readParameters(URL url, int connectTimeout) throws Exception {
+        while (true) {
+            URLConnection connection = url.openConnection();
+            connection.setConnectTimeout(connectTimeout);
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    int eqIndex = line.indexOf('=');
+                    if (eqIndex == -1) continue;
 
-            String name = line.substring(0, eqIndex);
-            if (!name.equals("msg")) {
-                if (name.equals("param")) {
-                    int secondEqIndex = line.indexOf('=', eqIndex + 2);
-                    parameters.put(line.substring(eqIndex + 1, secondEqIndex), line.substring(secondEqIndex + 1));
-                } else {
-                    parameters.put(name, line.substring(eqIndex + 1));
+                    String name = line.substring(0, eqIndex);
+                    if (!name.equals("msg")) {
+                        if (name.equals("param")) {
+                            int secondEqIndex = line.indexOf('=', eqIndex + 2);
+                            parameters.put(line.substring(eqIndex + 1, secondEqIndex), line.substring(secondEqIndex + 1));
+                        } else {
+                            parameters.put(name, line.substring(eqIndex + 1));
+                        }
+                    }
                 }
+                break;
+            } catch (SocketTimeoutException e) {
+                System.err.println("Timed out connecting, retrying...");
             }
         }
     }

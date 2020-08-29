@@ -47,12 +47,22 @@ public class Settings {
         return Integer.parseInt(properties.getProperty("world"));
     }
 
+    public boolean opengl() {
+        return Integer.parseInt(properties.getProperty("opengl")) != 0;
+    }
+
+    public int connectTimout() {
+        return Integer.parseInt(properties.getProperty("connectTimeout"));
+    }
+
     private boolean setDefaults() {
         boolean anyMissing = false;
         if (setIntIfInvalid("width", 1, Integer.MAX_VALUE, "765")) anyMissing = true;
         if (setIntIfInvalid("height", 1, Integer.MAX_VALUE, "503")) anyMissing = true;
         if (setIntIfInvalid("resizableFrame", 0, 1, "0")) anyMissing = true;
         if (setIntIfInvalid("world", 301, 1000, "516")) anyMissing = true;
+        if (setIntIfInvalid("opengl", 0, 1, "1")) anyMissing = true;
+        if (setIntIfInvalid("connectTimeout", 0, Integer.MAX_VALUE, "1000")) anyMissing = true;
         return anyMissing;
     }
 
