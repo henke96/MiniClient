@@ -7,7 +7,7 @@ public class MiniClient {
 
     public static final Modder modder = new Modder();
     private static final BaStats baStats = new BaStats();
-    private static final JFrame frame = new JFrame(baseTitle);
+    private static JFrame frame;
 
     // Modder injects a call to this into the client.
     public static void onTick() {
@@ -37,7 +37,7 @@ public class MiniClient {
         Settings settings = new Settings();
         if (settings.opengl()) System.setProperty("sun.java2d.opengl", "true");
 
-        JFrame frame = new JFrame("Runescape");
+        frame = new JFrame(baseTitle);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setResizable(settings.resizableFrame());
         AppletLoader loader = new AppletLoader(settings.world(), settings.width(), settings.height(), settings.connectTimout(), modder);
