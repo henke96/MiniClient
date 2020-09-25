@@ -20,7 +20,7 @@ public class BaStats {
     };
     private static final Rectangle lobbyArea = new Rectangle(2576, 5259, 35, 42);
     private static final Rectangle upstairsArea = new Rectangle(2529, 3567, 20, 20);
-    private static final Rectangle arrowRoomArea = new Rectangle(2595, 5271, 16, 8);
+    private static final Rectangle arrowRoomArea = new Rectangle(2595, 5271, 16, 9);
     public String infoString;
 
     private int currentWave = 0; // 0-9.
@@ -34,6 +34,13 @@ public class BaStats {
         boolean newInfo = false;
 
         long currentTime = System.nanoTime();
+
+        // Check for reset.
+        if (lobbyAreas[0].contains(worldX, worldY) &&
+            !lobbyAreas[0].contains(prevWorldX, prevWorldY)
+        ) {
+            currentWave = 0;
+        }
 
         if (worldX > 6400) { // In instance.
             if (lobbyAreas[currentWave].contains(prevWorldX, prevWorldY) ||
