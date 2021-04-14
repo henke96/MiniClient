@@ -172,7 +172,7 @@ public class Modder {
         if (methodInfo.accessFlags != (MethodInfo.ACC_STATIC | MethodInfo.ACC_FINAL)) return false;
 
         String descriptor = constPool.getUtf8Info(methodInfo.descriptorIndex);
-        if (!descriptor.matches("\\(ZL\\w{1,2};.\\)V")) return false;
+        if (!descriptor.matches("\\(ZL\\w{1,2};Z.\\)V")) return false;
 
         CodeAttribute codeAttribute = methodInfo.codeAttribute;
 
