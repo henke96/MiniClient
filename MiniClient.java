@@ -11,11 +11,11 @@ import java.util.HashMap;
 import javax.swing.JFrame;
 
 public class MiniClient implements AppletStub {
-    HashMap<String, String> parameters = new HashMap<>();
+    private HashMap<String, String> parameters = new HashMap<>();
 
     public MiniClient() throws Exception {
         // Jagex adds 300 to worlds in game, so 'oldschool216' is world 516, etc.
-        String gameUrl = "http://oldschool216.runescape.com/";
+        String gameUrl = "http://oldschool2126.runescape.com/";
 
         // Create window.
         JFrame frame = new JFrame("Runescape");
@@ -86,6 +86,7 @@ public class MiniClient implements AppletStub {
             System.setProperty("sun.java2d.opengl", "true");
             new MiniClient();
         } catch (Throwable e) {
+            e.printStackTrace();
             System.exit(1);
         }
     }
