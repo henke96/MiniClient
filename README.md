@@ -1,12 +1,8 @@
 # MiniClient
 A minimal runescape client.
 ## Building
-1. You need Java Development Kit installed (https://www.oracle.com/java/technologies/javase-downloads.html).
-2. You also need to setup PATH as described in https://docs.oracle.com/en/java/javase/13/install/installation-jdk-microsoft-windows-platforms.html#GUID-96EB3876-8C7A-4A25-9F3A-A2983FEC016A.
-3. Double click 'build.bat'.
-4. This will create 'MiniClient.jar' in the 'output' folder.
+javac MiniClient.java
 ## Running
-Double click 'MiniClient.jar'.
-## Settings
-A 'settings.txt' file is placed in a folder called 'MiniClient' in your home directory (C:\Users\yourname\MiniClient\settings.txt).
-In this file, some settings like world and window size etc. can be changed.
+java MiniClient
+## Create .jar
+jar cfe MiniClient.jar MiniClient MiniClient.class
