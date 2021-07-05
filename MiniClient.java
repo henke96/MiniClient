@@ -15,7 +15,7 @@ public class MiniClient implements AppletStub {
 
     public MiniClient() throws Exception {
         // Jagex adds 300 to worlds in game, so 'oldschool216' is world 516, etc.
-        String gameUrl = "http://oldschool2126.runescape.com/";
+        String gameUrl = "http://oldschool216.runescape.com/";
 
         // Create window.
         JFrame frame = new JFrame("Runescape");
