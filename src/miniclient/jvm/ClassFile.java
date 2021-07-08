@@ -43,6 +43,7 @@ public class ClassFile {
         }
         for (int i = 0; i < methods.length; ++i) {
             CodeAttribute codeAttribute = methods[i].codeAttribute;
+            if (codeAttribute == null) continue;
             if (codeAttribute.codeStartIndex >= index) {
                 codeAttribute.codeStartIndex += length;
             }
