@@ -73,7 +73,7 @@ public class MiniClient extends ClassLoader implements AppletStub {
                     String name = currentEntry.getName();
                     int dotClassIndex = name.indexOf(".class");
                     if (dotClassIndex == -1) continue;
-                    name = name.substring(0, dotClassIndex);
+                    name = name.substring(0, dotClassIndex).replaceAll("/", ".");
 
                     ByteArrayOutputStream classBytes = new ByteArrayOutputStream();
                     int numRead;
