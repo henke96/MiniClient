@@ -166,6 +166,7 @@ public class Modder {
                 }
             }
         }
+        throw new RuntimeException();
     }
 
     private boolean tryAddTickEvent(MethodInfo methodInfo, ConstPool constPool) {
