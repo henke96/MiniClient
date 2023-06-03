@@ -27,8 +27,8 @@ public class MiniClient implements AppletStub {
         // Read applet parameters, see http://oldschool1.runescape.com/jav_config.ws for example.
         while (true) {
             URLConnection connection = new URL(gameUrl + "jav_config.ws").openConnection();
-            connection.setConnectTimeout(300);
-            connection.setReadTimeout(300);
+            connection.setConnectTimeout(1000);
+            connection.setReadTimeout(1000);
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
