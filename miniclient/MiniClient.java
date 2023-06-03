@@ -64,8 +64,8 @@ public class MiniClient extends ClassLoader implements AppletStub {
 
             // Load classes from gamepack.
             connection = new URL(gameUrl + parameters.get("initial_jar")).openConnection();
-            connection.setConnectTimeout(300);
-            connection.setReadTimeout(300);
+            connection.setConnectTimeout(1000);
+            connection.setReadTimeout(1000);
             try (ZipInputStream gamepackIn = new ZipInputStream(connection.getInputStream())) {
                 ZipEntry currentEntry;
                 byte[] buffer = new byte[1024];
